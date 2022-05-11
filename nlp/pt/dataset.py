@@ -18,7 +18,7 @@ class TextDataset(torch.utils.data.Dataset):
         super().__init__()
 
         if not isinstance(data, np.ndarray):
-            data = data
+            data = np.array(data)
 
         self.data = data
         self.labels = labels
@@ -77,7 +77,7 @@ class TextDataset(torch.utils.data.Dataset):
             self.weights = np.ones(len(labels)) if weights is None else weights
 
             if len(np.array(labels).shape) == 1:
-                labelled_indices = np.argwhere(labels != -1).squeeze()  # avoid label -1
+                labelled_indices = np.argwhere(self.labels != -1).squeeze()  # avoid label -1
                 self.labels = self.labels[labelled_indices]
                 self.data = self.data[labelled_indices]
 
@@ -121,7 +121,7 @@ class TextDataset(torch.utils.data.Dataset):
         return t, label, w
 
 
-class DataCollator():
+class DataCollator:
     """
     Data Collator object that batches NLP data.
     It tokenizes texts using HuggingFace Transformers. It can also generate NER labels using a spacy pipeline

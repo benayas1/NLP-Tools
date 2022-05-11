@@ -37,7 +37,6 @@ class StorableModel():
 class IntentClassifier(torch.nn.Module, StorableModel):
     def __init__(self,
                  model_name: str = 'roberta-base',
-                 from_config: bool = False,
                  dropout_rate: float = 0.3,
                  n_outputs: int = 10,
                  return_output: bool = True,
@@ -47,15 +46,14 @@ class IntentClassifier(torch.nn.Module, StorableModel):
         super(IntentClassifier, self).__init__()
 
         # Encoder
-        if from_config:
-            config = AutoConfig.from_pretrained(model_name)
-            self.transformer = AutoModel.from_pretrained(config)
-        else:
-            self.transformer = AutoModel.from_pretrained(model_name)
+        config = AutoConfig.from_pretrained(model_name)
+        self.pos_embeddings = config.max_position_embeddings
+        self.hidden_size = config.hidden_size
+        self.transformer = AutoModel.from_config(config)
 
         # Classifier
         self.d1 = torch.nn.Dropout(dropout_rate)
-        self.l1 = torch.nn.Linear(768, 256)
+        self.l1 = torch.nn.Linear(self.hidden_size, 256)
         self.bn1 = torch.nn.LayerNorm(256)
         self.act1 = torch.nn.ReLU()
 
@@ -103,7 +101,12 @@ class IntentClassifier(torch.nn.Module, StorableModel):
 
     def encode(self, input_ids, attention_mask):
         x = self.transformer(input_ids=input_ids, attention_mask=attention_mask)
-        return x['pooler_output']
+        if not hasattr(x, 'pooler_output'):
+            if not hasattr(x, 'last_hidden_state'):
+                raise KeyError(f"Backbone {self.model_name} does not have either 'pooler_output' nor 'last_hidden_state' keys in output.")
+            return torch.mean(x['last_hidden_state'], dim=1)
+        else:
+            return x['pooler_output'] # Shape (batch, hidden_size)
 
     def save(self, path):
         params = {'class_name': self.__class__.__name__,
@@ -125,7 +128,6 @@ class IntentClassifier(torch.nn.Module, StorableModel):
 class IntentClassifierNER(torch.nn.Module, StorableModel):
     def __init__(self,
                  model_name: str = 'roberta-base',
-                 from_config: bool = False,
                  dropout_rate: float = 0.3,
                  n_intents: int = 10,
                  n_ner: int = 20,
@@ -136,15 +138,14 @@ class IntentClassifierNER(torch.nn.Module, StorableModel):
         super(IntentClassifierNER, self).__init__()
 
         # Encoder
-        if from_config:
-            config = AutoConfig.from_pretrained(model_name)
-            self.transformer = AutoModel.from_pretrained(config)
-        else:
-            self.transformer = AutoModel.from_pretrained(model_name)
+        config = AutoConfig.from_pretrained(model_name)
+        self.pos_embeddings = config.max_position_embeddings
+        self.hidden_size = config.hidden_size
+        self.transformer = AutoModel.from_config(config)
 
         # Intent Classifier
         self.ic_d1 = torch.nn.Dropout(dropout_rate)
-        self.ic_l1 = torch.nn.Linear(768, 256)
+        self.ic_l1 = torch.nn.Linear(self.hidden_size, 256)
         self.ic_bn1 = torch.nn.LayerNorm(256)
         self.ic_act1 = torch.nn.ReLU()
 
@@ -153,7 +154,7 @@ class IntentClassifierNER(torch.nn.Module, StorableModel):
 
         # NER
         self.ner_d1 = torch.nn.Dropout(dropout_rate)
-        self.ner_l1 = torch.nn.Linear(768, 256)
+        self.ner_l1 = torch.nn.Linear(self.hidden_size, 256)
         self.ner_bn1 = torch.nn.LayerNorm(256)
         self.ner_act1 = torch.nn.ReLU()
 
@@ -181,13 +182,13 @@ class IntentClassifierNER(torch.nn.Module, StorableModel):
                 print("Warning: No mapping provided, won't be able to save the model")
 
     def forward(self, input_ids, attention_mask):
-        x = self.transformer(input_ids=input_ids, attention_mask=attention_mask)
+        pooler_output, last_hidden_state = self.encode(input_ids=input_ids, attention_mask=attention_mask)
 
         if self.return_encodings and not self.return_output:
-            return x['pooler_output']
+            return pooler_output
 
         # Intent classifier
-        x1 = self.ic_d1(x['pooler_output'])
+        x1 = self.ic_d1(pooler_output)
         x1 = self.ic_l1(x1)
         x1 = self.ic_bn1(x1)
         x1 = self.ic_act1(x1)
@@ -195,7 +196,7 @@ class IntentClassifierNER(torch.nn.Module, StorableModel):
         x1 = self.ic_l2(x1)
 
         # NER
-        x2 = self.ner_d1(x['last_hidden_state'])
+        x2 = self.ner_d1(last_hidden_state)
         x2 = self.ner_l1(x2)
         x2 = self.ner_bn1(x2)
         x2 = self.ner_act1(x2)
@@ -206,7 +207,12 @@ class IntentClassifierNER(torch.nn.Module, StorableModel):
 
     def encode(self, input_ids, attention_mask):
         x = self.transformer(input_ids=input_ids, attention_mask=attention_mask)
-        return x['pooler_output']
+        if not hasattr(x, 'pooler_output'):
+            if not hasattr(x, 'last_hidden_state'):
+                raise KeyError(f"Backbone {self.model_name} does not have either 'pooler_output' nor 'last_hidden_state' keys in output.")
+            return torch.mean(x['last_hidden_state'], dim=1), x['last_hidden_state']
+        else:
+            return x['pooler_output'], x['last_hidden_state']
 
     def save(self, path):
         params = {'class_name': self.__class__.__name__,

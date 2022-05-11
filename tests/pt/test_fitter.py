@@ -79,10 +79,10 @@ class TestAverageMeter:
         avg_meter = self.build_avg_meter(loss_data=loss_data)
         avg_meter.reset()
         self.check_attributes(avg_meter=avg_meter)
-        assert avg_meter.val == 0
-        assert avg_meter.sum == 0
+        assert avg_meter.val == 0.0
+        assert avg_meter.sum == 0.0
         assert avg_meter.count == 0
-        assert avg_meter.avg == 0
+        assert avg_meter.avg == 0.0
 
 
 @pytest.mark.usefixtures('data_text_classification', 'clean_dir', 'random_config')

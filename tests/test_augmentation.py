@@ -1,4 +1,4 @@
-from nlp.augmentation import augment_intent, BackTranslation, SynonymReplacement, OneOf, Augmenter, \
+from nlp.augmentation import augment_intent, BackTranslation, OneOf, Augmenter, \
     SwitchAugmentation, ReplaceAugmentation, InsertAugmentation, Sequence, SynonymReplacementFast
 from Levenshtein import distance
 from collections import Counter
@@ -197,29 +197,6 @@ def test_augment_intent(augmentation_list, df_intent):
     assert len(augment_intent(df=df_intent, augmenter=augmenter, lower_bound=10, upper_bound=100)) == 10
 
     assert len(augment_intent(df=df_intent, augmenter=augmenter, lower_bound=0, upper_bound=100)) == len(df_intent)
-
-
-@pytest.mark.usefixtures("random_config")
-def test_synonym_replacement(texts_reference):
-    if MODELS_PATH['glove'] is None:
-        pytest.skip(f"Missing embeddings_path attribute for SynonymReplacement")
-
-    synonym_replacement = SynonymReplacement(model_type='glove',
-                                             embeddings_path=MODELS_PATH['glove'])
-
-    augmented_texts = synonym_replacement.augment(texts_reference)
-    print(augmented_texts)
-
-    # Test dimensions
-    assert len(augmented_texts) == len(texts_reference)
-    # Test data types
-    assert all([isinstance(augmented_text, str) for augmented_text in augmented_texts])
-
-    for i in range(len(texts_reference)):
-        # Test augmented text replace unless 1 word
-        assert len(set(texts_reference[i].split()).difference(set(augmented_texts[i].split()))) >= 1
-
-    assert True
 
 
 @pytest.mark.usefixtures("random_config")
