@@ -8,8 +8,8 @@ packages = setuptools.find_packages(where=".")
 setuptools.setup(
     name="nlp",  # Replace with your own username
     version="0.0.1",
-    author="EPAM",
-    author_email="alberto_jose_benayas@epam.com",
+    author="Alberto Benayas",
+    author_email="benayas1@gmail.com",
     description="A small nlp project",
     long_description=long_description,
     long_description_content_type="text/markdown",
